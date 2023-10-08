@@ -1,136 +1,211 @@
 
-
 --Selecting the necessary data
+Select 
+	Location, 
+	date, 
+	total_cases, 
+	new_cases, 
+	total_deaths, 
+	population
+From 
+	PortfolioProject..CovidDeaths$
+Order by
+	Location, date
+	
+--Calculating the mortality rate on a daily rolling basis
+--Shows the number of dead as a % of number of infected
 
-Select Location, date, total_cases, new_cases, total_deaths, population
-From PortfolioProject..CovidDeaths$
-Order by 1,2
+Select 
+	Location, 
+	date, 
+	total_cases, 
+	total_deaths, 
+	(total_deaths/total_cases)*100 as MortalityRate
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	total_cases is not null and iso_code not like '%owid%'
+Order by 
+	1,2
 
---Total cases vs Total deaths
---Shows likelihood of dying after contracting covid
+--This can also be used drilled down for specific countries. Nigeria has been used as an example here
 
-Select Location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as MortalityRate
-From PortfolioProject..CovidDeaths$
-Where location like '%nigeria%'
-Order by 1,2
+Select 
+	Location, 
+	date, 
+	total_cases, 
+	total_deaths, 
+	(total_deaths/total_cases)*100 as MortalityRate
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	total_cases is not null and location like '%nigeria%'
+Order by 
+	1,2
 
---Total cases vs Population by country
---Shows the % of population infected
+--Investigating infection rates by country. Shows the % of the population infected
 
-Select Location, date, population, total_cases, (total_cases/population)*100 as InfectionRate
-From PortfolioProject..CovidDeaths$
-Order by 1,2
+Select 
+	Location, 
+	population, 
+	max(total_cases) as HighestInfectionCount, 
+	max((total_cases/population))*100 as InfectionRate
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	continent is not null and total_cases is not null
+Group by 
+	location, population
+Order by 
+	InfectionRate desc
 
---Investigating infection rates by country
+--Investigating the total number of deaths by country
 
-Select Location, population, max(total_cases) as HighestInfectionCount, max((total_cases/population))*100 as InfectionRate
-From PortfolioProject..CovidDeaths$
-Where continent is not null and total_cases is not null
-Group by location, population
-Order by InfectionRate desc
+Select 
+	Location, 
+	population, 
+	max(cast(total_deaths as int)) as DeathCount
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	continent is not null
+Group by 
+	location, population
+Order by 
+	DeathCount desc
 
+--Investigating the total number of deaths by continent
 
---Showing Death Rate per population by country
-
-Select Location, population, max(cast(total_deaths as int)) as DeathCount
-From PortfolioProject..CovidDeaths$
-Where continent is not null
-Group by location, population
-Order by DeathCount desc
-
---Showing the death count by continent
-
-Select location, max(cast(total_deaths as int)) as DeathCount
-From PortfolioProject..CovidDeaths$
-Where continent is null and location not like '%income%'
-Group by location
-Order by DeathCount desc
-
-
---Showing number of daily new cases and deaths globally
---use nullif to avoid a zero division error
-
-Select date, SUM(new_cases) as total_cases, SUM(new_deaths) as total_deaths, nullif(SUM(new_deaths),0)/nullif(sum(new_cases),0)*100 as DeathRate
-From PortfolioProject..CovidDeaths$
-Where continent is not null
-Group by date
-Order by 1,2
-
---Total number of new cases and new deaths across the entire period
-
-Select SUM(new_cases) as total_cases, SUM(new_deaths) as total_deaths, nullif(SUM(new_deaths),0)/nullif(sum(new_cases),0)*100 as DeathRate
-From PortfolioProject..CovidDeaths$
-Where continent is not null
-Order by 1,2
-
---Total New cases globally (per country) from 2020 - 2023 (per year)
-
---Method 1: using
---Select location, isnull(sum(new_cases),0) as TotalNewCases
---From PortfolioProject..CovidDeaths$
---Where date like '2020%' and continent is not null and location not like '%income'
---Where date like '2020%' and iso_code not like '%owid%'
---Group by location
---Order by location 
-
-Select location, isnull(sum(new_cases),0) as TotalNewCases
-From PortfolioProject..CovidDeaths$
-Where date like '2020%' and continent is not null and location not like '%income'
-Group by location
-Order by TotalNewCases desc
-
-Select location, isnull(sum(new_cases),0) as TotalNewCases
-From PortfolioProject..CovidDeaths$
-Where date like '2021%' and continent is not null and location not like '%income'
-Group by location
-Order by TotalNewCases desc
-
-Select location, isnull(sum(new_cases),0) as TotalNewCases
-From PortfolioProject..CovidDeaths$
-Where date like '2022%' and continent is not null and location not like '%income'
-Group by location
-Order by TotalNewCases desc
-
-Select location, isnull(sum(new_cases),0) as TotalNewCases
-From PortfolioProject..CovidDeaths$
-Where date like '2023%' and continent is not null and location not like '%income'
-Group by location
-Order by TotalNewCases desc
-
---Total New cases globally (per country) from 2020 - 2023 (per year)
-
---First ceate a new column as year and add to the table
-
-Alter table PortfolioProject..CovidDeaths$
-Add year nvarchar(150)
-
---Then we use parsename to split the date and extract the year and set it to the newly created year column
-
-Update PortfolioProject..CovidDeaths$
-Set year = parsename(replace(date,'-','.'),3)
-
---Query showing total cases per country per year
-
-Select location, year, max(total_cases) as Total_Cases
-From PortfolioProject..CovidDeaths$
-Group by location, year
-Order by location, YEAR
-
-Select *
-From PortfolioProject..CovidDeaths$
-Group by year, location
+Select 
+	location, 
+	max(cast(total_deaths as int)) as DeathCount
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	iso_code not like '%owid%'
+Group by 
+	location
+Order by 
+	DeathCount desc
 
 
-Select location, sum(new_cases) over(partition by location, date Order by date) as TotalNewCases
-From PortfolioProject..CovidDeaths$
-Where continent is not null and location not like '%income'
-Group by location
-Order by TotalNewCases desc
+--Investigating the global death rate per day
+--here, we use nullif() to avoid a zero division error by converting zero to null and use isnull() to convert null to zero
 
---Total population vs Vaccinations
+Select 
+	date, 
+	SUM(new_cases) as total_cases, 
+	SUM(new_deaths) as total_deaths, 
+	nullif(SUM(new_deaths),0)/nullif(sum(new_cases),0)*100 as DeathRate
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	continent is not null
+Group by 
+	date
+Order by 
+	1,2
+
+--Total number of infections (cases) and deaths across the entire period. I.e., lumping up the previous query
+
+Select 
+	SUM(new_cases) as total_cases, 
+	SUM(new_deaths) as total_deaths, 
+	nullif(SUM(new_deaths),0)/nullif(sum(new_cases),0)*100 as DeathRate
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	continent is not null
+
+--Total cases globally broken down by country and year
+--Method 1: using querying for each year separately
+
+Select 
+	location, 
+	isnull(sum(new_cases),0) as TotalCases
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	date like '2020%' and iso_code not like '%owid%'
+Group by 
+	location
+Order by 
+	TotalCases desc
+
+--Repeat the above query for 2021, 2022, and 2023
+	
+Select 
+	location, 
+	isnull(sum(new_cases),0) as TotalCases
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	date like '2021%' and iso_code not like '%owid%'
+Group by 
+	location
+Order by 
+	TotalCases desc
+
+Select 
+	location, 
+	isnull(sum(new_cases),0) as TotalCases
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	date like '2022%' and iso_code not like '%owid%'
+Group by 
+	location
+Order by 
+	TotalCases desc
+
+Select 
+	location, 
+	isnull(sum(new_cases),0) as TotalCases
+From 
+	PortfolioProject..CovidDeaths$
+Where 
+	date like '2023%' and iso_code not like '%owid%'
+Group by 
+	location
+Order by 
+	TotalCases desc
+
+--Method 2: Grouping by country and year. This is better and cleaner
+
+	--Step 1: Create a new column called 'year' and add it to the table
+
+Alter table 
+	PortfolioProject..CovidDeaths$
+Add year 
+	nvarchar(50)
+
+	--Step 2: Use parsename to split the date, extract the year and set it to the newly created 'year' column
+		/*Step 2.1: To do this, we first have to replace the hyphens in the date with periods as parsename only
+			    accepts periods as delimiters. Parsename also counts from right to left, beginning at 1.
+			    So, in this instance, the year will be the third of three items after the date is split.*/
+
+Update 
+	PortfolioProject..CovidDeaths$
+Set 
+	year = parsename(replace(date,'-','.'),3)
+
+	--Step 3: Now we write the body of the query 
+
+Select 
+	location, 
+	year, 
+	max(total_cases) as TotalCases
+From 
+	PortfolioProject..CovidDeaths$
+Group by 
+	location, year
+Order by 
+	location, year
+
+--Investigating the daily number of vaccinated individuals by country in each continent
 
 --alter table PortfolioProject..CovidDeaths$
---alter column location nvarchar(150)
+--alter column location nvarchar(50)
 
 Select d.continent, d.location, d.date, d.population, vax.new_vaccinations,
 SUM(vax.new_vaccinations) over (partition by d.location Order by d.location, d.date) as VaxxedToDate 
@@ -181,7 +256,7 @@ From #PercentPopulationVaccinated
 
 
 --Creating views
-
+	
 Create View InfectionRateByCountry as
 Select Location, population, max(total_cases) as HighestInfectionCount, max((total_cases/population))*100 as InfectionRate
 From PortfolioProject..CovidDeaths$
