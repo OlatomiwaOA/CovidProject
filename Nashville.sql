@@ -154,3 +154,11 @@ Drop Column OwnerAddress, TaxDistrict, PropertyAddress, SaleDate
 
 Select *
 From PortfolioProject..NashvilleHousingData$
+
+-----------------------------------------------------------------------------------------------------
+--Creating Views
+
+Create View PropertyAge as
+Select [UniqueID ], ParcelID, OwnerName, YearBuilt, YearSold, (YearSold - YearBuilt) as PropertyAge
+From PortfolioProject..NashvilleHousingData$
+
