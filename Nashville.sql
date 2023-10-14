@@ -1,10 +1,5 @@
-
-
 --Cleaning data using SQL queries
-
-Select *
-From PortfolioProject..NashvilleHousingData$
-
+-----------------------------------------------------------------------------------------------------
 --Standardising date format
 
 Alter table NashvilleHousingData$
@@ -15,6 +10,19 @@ SET SaleDateConverted = CONVERT(Date, SaleDate)
 
 Select SaleDateConverted
 From PortfolioProject..NashvilleHousingData$
+
+-----------------------------------------------------------------------------------------------------
+--Getting year from date
+
+Select
+PARSENAME(Replace(SaleDateConverted, '-', '.'), 3)
+From PortfolioProject..NashvilleHousingData$
+
+Alter table NashvilleHousingData$
+Add YearSold float;
+
+Update NashvilleHousingData$
+SET YearSold = PARSENAME(Replace(SaleDateConverted, '-', '.'), 3)
 
 -----------------------------------------------------------------------------------------------------
 --Corectly populating property address data
@@ -107,12 +115,42 @@ From PortfolioProject..NashvilleHousingData$
 
 Update NashvilleHousingData$
 SET SoldAsVacant = CASE
-						When SoldAsVacant = 'Y' THEN 'Yes'
-						When SoldAsVacant = 'N' THEN 'NO'
-						ELSE SoldAsVacant
-						END
+			When SoldAsVacant = 'Y' THEN 'Yes'
+			When SoldAsVacant = 'N' THEN 'NO'
+			ELSE SoldAsVacant
+			END
 
 Select Distinct(SoldAsVacant), COUNT(SoldAsVacant)
 From PortfolioProject..NashvilleHousingData$
 Group by SoldAsVacant
 Order by 2
+
+-----------------------------------------------------------------------------------------------------
+--Removing duplicates
+
+WITH RowCTE AS (
+Select *,
+	ROW_NUMBER() Over(
+	Partition by ParcelID,
+			     PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 Order by
+					UniqueID
+					) ROW_NUM
+
+From PortfolioProject..NashvilleHousingData$
+)
+DELETE
+From RowCTE
+Where ROW_NUM > 1
+
+-----------------------------------------------------------------------------------------------------
+--Delete unused columns (try not to delete anything from your raw data. Delete from views)
+
+Alter table PortfolioProject..NashvilleHousingData$
+Drop Column OwnerAddress, TaxDistrict, PropertyAddress, SaleDate
+
+Select *
+From PortfolioProject..NashvilleHousingData$
